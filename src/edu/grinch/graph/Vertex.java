@@ -10,6 +10,7 @@ import java.util.List;
  */
 public class Vertex {
     public static final double DEFAULT_WEIGHT = 1.;
+    public static final double EPS = 0.1;
     private int id;
     private List<Vertex> parents = new LinkedList<Vertex>();
     private List<Vertex> children = new LinkedList<Vertex>();
@@ -20,6 +21,10 @@ public class Vertex {
     public Vertex(int id){
         this.id = id;
         weight = Vertex.DEFAULT_WEIGHT;
+    }
+
+    public void decreasePheromone(){
+        pheromone = pheromone <= 0 ? 0:(1-Vertex.EPS)*pheromone;
     }
 
     public List<Vertex> getParents() {

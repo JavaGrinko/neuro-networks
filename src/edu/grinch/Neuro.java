@@ -7,7 +7,7 @@ import edu.grinch.ins.SingleLayerPerceptron;
 import edu.grinch.linearalgebra.Matrix;
 import edu.grinch.linearalgebra.Vector;
 import edu.grinch.simulator.Simulator;
-import edu.uci.ics.jung.algorithms.layout.CircleLayout;
+import edu.uci.ics.jung.algorithms.layout.KKLayout;
 import edu.uci.ics.jung.algorithms.layout.Layout;
 import edu.uci.ics.jung.visualization.BasicVisualizationServer;
 import edu.uci.ics.jung.visualization.renderers.Renderer;
@@ -15,9 +15,11 @@ import org.apache.commons.collections15.Transformer;
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.LinkedList;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.util.*;
 import java.util.List;
-import java.util.Random;
+import java.util.Timer;
 
 /**
  * Author Grinch
@@ -25,17 +27,22 @@ import java.util.Random;
  * Time: 14:48
  */
 public class Neuro {
+    static JPanel graphPanel, controlPanel, mainPanel;
+    static JButton startButton;
+    static BasicVisualizationServer<Vertex,String> vv;
+    static Simulator simulator;
+    static Timer timer = new Timer();
+    public static final int MILLISECONDS_STEP = 1;
 
     public static void main(String[] args){
-        final Simulator simulator = new Simulator();
+        initUI();
+        simulator = new Simulator();
 
-        Layout<Vertex, String> layout = new CircleLayout(simulator.getGraphWays().getGraph());
-        layout.setSize(new Dimension(600,600)); // sets the initial size of the space
-        // The BasicVisualizationServer<V,E> is parameterized by the edge types
-        BasicVisualizationServer<Vertex,String> vv =
-                new BasicVisualizationServer<Vertex,String>(layout);
-        vv.setPreferredSize(new Dimension(650,650)); //Sets the viewing area size
+        Layout<Vertex, String> layout = new KKLayout<Vertex, String>(simulator.getGraphWays().getGraph());
+        layout.setSize(new Dimension(650,650));
 
+        vv = new BasicVisualizationServer<Vertex,String>(layout);
+        //vv.setPreferredSize(new Dimension(650,650));
         Transformer<Vertex,Paint> vertexPaint = new Transformer<Vertex,Paint>() {
             public Paint transform(Vertex v) {
                 if (v == simulator.getGraphWays().getStartVertex()){
@@ -43,6 +50,9 @@ public class Neuro {
                 }
                 if (v == simulator.getGraphWays().getEndVertex()){
                     return Color.RED;
+                }
+                if (simulator.getAntCount(v) > 0){
+                    return Color.BLACK;
                 }
                 return Color.GREEN;
             }
@@ -59,26 +69,60 @@ public class Neuro {
                     }
                 };
 
-        Transformer<Vertex, String> vertexStringTransformer =
-                new Transformer<Vertex, String>() {
-                    public String transform(Vertex s) {
-                        return s.toString()+". Status: A=1, F=0.1";
-                    }
-                };
+
 
         vv.getRenderContext().setVertexFillPaintTransformer(vertexPaint);
         vv.getRenderContext().setEdgeStrokeTransformer(edgeStrokeTransformer);
 
-        vv.getRenderContext().setVertexLabelTransformer(vertexStringTransformer);
+        vv.getRenderContext().setVertexLabelTransformer(getVertexLabels());
         //vv.getRenderContext().setEdgeLabelTransformer(new ToStringLabeller());
         vv.getRenderer().getVertexLabelRenderer().setPosition(Renderer.VertexLabel.Position.N);
 
+        graphPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 0, 20));
+        graphPanel.add(vv);
+
+
+        JLabel label1 = new JLabel("Time: 00:00:00", null, JLabel.CENTER);
+
+        controlPanel.add(label1);
+        controlPanel.add(startButton);
+        mainPanel.add(controlPanel,BorderLayout.PAGE_START);
+        mainPanel.add(graphPanel,BorderLayout.CENTER);
+
         JFrame frame = new JFrame("Simple GraphWays View");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.getContentPane().add(vv);
+        frame.add(mainPanel);
         frame.pack();
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
+    }
+
+    static private Transformer<Vertex, String> getVertexLabels(){
+        return new Transformer<Vertex, String>() {
+                    public String transform(Vertex v) {
+                        return v.toString()+", A="+simulator.getAntCount(v)+", F="+Math.round(v.getPheromone()*1000.)/1000.;
+                    }
+                };
+
+    }
+    static boolean enable = false;
+    private static void initUI() {
+        graphPanel = new JPanel(new GridBagLayout());
+        controlPanel = new JPanel(new FlowLayout());
+        mainPanel = new JPanel(new BorderLayout());
+        startButton = new JButton("Start");
+        startButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                timer.schedule(new TimerTask() {
+                    @Override
+                    public void run() {
+                        simulator.move();
+                        vv.getRenderContext().setVertexLabelTransformer(getVertexLabels());
+                        vv.updateUI();
+                    }
+                }, 0, MILLISECONDS_STEP);
+            }
+        });
     }
 
     static void hnn(){

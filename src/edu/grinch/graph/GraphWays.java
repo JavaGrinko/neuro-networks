@@ -76,6 +76,12 @@ public class GraphWays {
         return g;
     }
 
+    public void decreaseAllPheromones(){
+        for (Vertex v : vertexes){
+            v.decreasePheromone();
+        }
+    }
+
     public List<Vertex> getVertexes() {
         return vertexes;
     }

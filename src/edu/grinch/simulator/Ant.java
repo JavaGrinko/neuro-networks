@@ -2,9 +2,11 @@ package edu.grinch.simulator;
 
 import edu.grinch.graph.GraphWays;
 import edu.grinch.graph.Vertex;
+import edu.grinch.linearalgebra.Vector;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Random;
 
 /**
  * Author Grinch
@@ -12,7 +14,9 @@ import java.util.List;
  * Time: 11:29
  */
 public class Ant {
-    public static final double PHEROMONE_INTENSIVE = 0.1;
+    public static final double KOEF_K = 10.;
+    public static final double ALPHA = 2.;
+    public static final double BETA = 0;
     private GraphWays graphWays;
     private List<Vertex> tabuList = new LinkedList<Vertex>();
     private Vertex currentPosition;
@@ -46,7 +50,32 @@ public class Ant {
                 isBack = true;
             }else{
                 //ищим наилучший вариант хода в вероятностном смысле
-                Vertex nextVertex = availableChildren.get(0); //КОСТЫЛЬ, ПЕРЕПИСАТЬ ПО ФОРМУЛЕ!!!!!!!!!!!!
+                Vector P = getP(children);
+                double s = 0;
+                for (int i = 0; i < P.getCount(); i++){
+                    s += P.getData(i);
+                }
+                for (int i = 0; i < P.getCount(); i++){
+                    P.setData(i,P.getData(i)/s);
+                    if (i != 0) P.setData(i,P.getData(i)+P.getData(i-1));
+                }
+                Random r = new Random();
+                double x = r.nextDouble();
+                int winIndex = 0;
+                for (int i = 0; i < P.getCount(); i++){
+                    if (i == 0){
+                        if (x >= 0 & x < P.getData(i)){
+                            winIndex = i;
+                            break;
+                        }
+                    }else{
+                        if (x >= P.getData(i-1) & x < P.getData(i)){
+                            winIndex = i;
+                            break;
+                        }
+                    }
+                }
+                Vertex nextVertex = availableChildren.get(winIndex); //КОСТЫЛЬ, ПЕРЕПИСАТЬ ПО ФОРМУЛЕ!!!!!!!!!!!!
                 tabuList.add(currentPosition);
                 currentPosition = nextVertex;
 
@@ -71,9 +100,22 @@ public class Ant {
         }
     }
 
+    private Vector getP(List<Vertex> children){
+        Vector p = new Vector(children.size());
+        double s = 0;
+        for (Vertex v : children){
+            s += 1./Math.pow(v.getWeight(),Ant.BETA) + Math.pow(v.getPheromone(),Ant.ALPHA);
+        }
+        for (int i = 0; i < p.getCount(); i++){
+            double c = 1./Math.pow(children.get(i).getWeight(),Ant.BETA) + Math.pow(children.get(i).getPheromone(),Ant.ALPHA);
+            p.setData(i,c/s);
+        }
+        return p;
+    }
+
     private void increasePheromone(){
         double pheromone = currentPosition.getPheromone();
-        pheromone += Ant.PHEROMONE_INTENSIVE;
+        pheromone += Ant.KOEF_K/tabuList.size();
         currentPosition.setPheromone(pheromone);
     }
 
