@@ -52,6 +52,7 @@ public class Neuro {
                     return Color.RED;
                 }
                 if (simulator.getAntCount(v) > 0){
+                    //return simulator.getFirstAnt(v).getColor();
                     return Color.BLACK;
                 }
                 return Color.GREEN;
@@ -78,7 +79,7 @@ public class Neuro {
         //vv.getRenderContext().setEdgeLabelTransformer(new ToStringLabeller());
         vv.getRenderer().getVertexLabelRenderer().setPosition(Renderer.VertexLabel.Position.N);
 
-        graphPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 0, 20));
+        graphPanel.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 20));
         graphPanel.add(vv);
 
 
@@ -89,7 +90,7 @@ public class Neuro {
         mainPanel.add(controlPanel,BorderLayout.PAGE_START);
         mainPanel.add(graphPanel,BorderLayout.CENTER);
 
-        JFrame frame = new JFrame("Simple GraphWays View");
+        JFrame frame = new JFrame("Ants");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.add(mainPanel);
         frame.pack();
@@ -110,7 +111,7 @@ public class Neuro {
         graphPanel = new JPanel(new GridBagLayout());
         controlPanel = new JPanel(new FlowLayout());
         mainPanel = new JPanel(new BorderLayout());
-        startButton = new JButton("Start");
+        startButton = new JButton("Speed UP");
         startButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 timer.schedule(new TimerTask() {

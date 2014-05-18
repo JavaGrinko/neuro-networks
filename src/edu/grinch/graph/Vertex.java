@@ -10,7 +10,7 @@ import java.util.List;
  */
 public class Vertex {
     public static final double DEFAULT_WEIGHT = 1.;
-    public static final double EPS = 0.1;
+    public static final double EPS = 0.01;
     private int id;
     private List<Vertex> parents = new LinkedList<Vertex>();
     private List<Vertex> children = new LinkedList<Vertex>();

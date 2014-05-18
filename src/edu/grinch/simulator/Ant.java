@@ -4,6 +4,7 @@ import edu.grinch.graph.GraphWays;
 import edu.grinch.graph.Vertex;
 import edu.grinch.linearalgebra.Vector;
 
+import java.awt.*;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
@@ -14,18 +15,22 @@ import java.util.Random;
  * Time: 11:29
  */
 public class Ant {
-    public static final double KOEF_K = 10.;
-    public static final double ALPHA = 2.;
-    public static final double BETA = 0;
+    public static final double KOEF_K = 1.;
+    public static final double ALPHA = 1.;
+    public static final double BETA = 0.;
     private GraphWays graphWays;
     private List<Vertex> tabuList = new LinkedList<Vertex>();
     private Vertex currentPosition;
+    private int lastCount;
     private boolean isTailDown;
     private boolean isBack;
+    private Color color;
 
     public Ant(GraphWays graphWays){
         this.graphWays = graphWays;
         currentPosition = graphWays.getStartVertex();
+        Random r = new Random();
+        color = new Color(r.nextInt(256),r.nextInt(256),r.nextInt(256),r.nextInt(256));
     }
 
     public void move(){
@@ -75,7 +80,7 @@ public class Ant {
                         }
                     }
                 }
-                Vertex nextVertex = availableChildren.get(winIndex); //КОСТЫЛЬ, ПЕРЕПИСАТЬ ПО ФОРМУЛЕ!!!!!!!!!!!!
+                Vertex nextVertex = availableChildren.get(winIndex);
                 tabuList.add(currentPosition);
                 currentPosition = nextVertex;
 
@@ -85,6 +90,7 @@ public class Ant {
                 if (currentPosition == graphWays.getEndVertex()){
                     isBack = true;
                     isTailDown = true;
+                    lastCount = tabuList.size();
                 }
             }
         }else{
@@ -115,7 +121,7 @@ public class Ant {
 
     private void increasePheromone(){
         double pheromone = currentPosition.getPheromone();
-        pheromone += Ant.KOEF_K/tabuList.size();
+        pheromone += Ant.KOEF_K/lastCount;
         currentPosition.setPheromone(pheromone);
     }
 
@@ -150,5 +156,13 @@ public class Ant {
 
     public void setBack(boolean isBack) {
         this.isBack = isBack;
+    }
+
+    public Color getColor() {
+        return color;
+    }
+
+    public void setColor(Color color) {
+        this.color = color;
     }
 }
