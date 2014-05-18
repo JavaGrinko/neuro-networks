@@ -1,11 +1,20 @@
 package edu.grinch;
 
+import edu.grinch.graph.Vertex;
 import edu.grinch.ins.HopfieldNeuralNetwork;
 import edu.grinch.ins.KohonensNeuralNetwork;
 import edu.grinch.ins.SingleLayerPerceptron;
 import edu.grinch.linearalgebra.Matrix;
 import edu.grinch.linearalgebra.Vector;
+import edu.grinch.simulator.Simulator;
+import edu.uci.ics.jung.algorithms.layout.CircleLayout;
+import edu.uci.ics.jung.algorithms.layout.Layout;
+import edu.uci.ics.jung.visualization.BasicVisualizationServer;
+import edu.uci.ics.jung.visualization.renderers.Renderer;
+import org.apache.commons.collections15.Transformer;
 
+import javax.swing.*;
+import java.awt.*;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
@@ -18,9 +27,58 @@ import java.util.Random;
 public class Neuro {
 
     public static void main(String[] args){
-        //slp();
-        //knn();
-        hnn();
+        final Simulator simulator = new Simulator();
+
+        Layout<Vertex, String> layout = new CircleLayout(simulator.getGraphWays().getGraph());
+        layout.setSize(new Dimension(600,600)); // sets the initial size of the space
+        // The BasicVisualizationServer<V,E> is parameterized by the edge types
+        BasicVisualizationServer<Vertex,String> vv =
+                new BasicVisualizationServer<Vertex,String>(layout);
+        vv.setPreferredSize(new Dimension(650,650)); //Sets the viewing area size
+
+        Transformer<Vertex,Paint> vertexPaint = new Transformer<Vertex,Paint>() {
+            public Paint transform(Vertex v) {
+                if (v == simulator.getGraphWays().getStartVertex()){
+                    return Color.WHITE;
+                }
+                if (v == simulator.getGraphWays().getEndVertex()){
+                    return Color.RED;
+                }
+                return Color.GREEN;
+            }
+        };
+        // Set up a new stroke Transformer for the edges
+        float dash[] = {10.0f};
+        final Stroke edgeStroke = new BasicStroke(1.0f, BasicStroke.CAP_BUTT,
+                BasicStroke.JOIN_MITER, 10.0f, dash, 0.0f);
+
+        Transformer<String, Stroke> edgeStrokeTransformer =
+                new Transformer<String, Stroke>() {
+                    public Stroke transform(String s) {
+                        return edgeStroke;
+                    }
+                };
+
+        Transformer<Vertex, String> vertexStringTransformer =
+                new Transformer<Vertex, String>() {
+                    public String transform(Vertex s) {
+                        return s.toString()+". Status: A=1, F=0.1";
+                    }
+                };
+
+        vv.getRenderContext().setVertexFillPaintTransformer(vertexPaint);
+        vv.getRenderContext().setEdgeStrokeTransformer(edgeStrokeTransformer);
+
+        vv.getRenderContext().setVertexLabelTransformer(vertexStringTransformer);
+        //vv.getRenderContext().setEdgeLabelTransformer(new ToStringLabeller());
+        vv.getRenderer().getVertexLabelRenderer().setPosition(Renderer.VertexLabel.Position.N);
+
+        JFrame frame = new JFrame("Simple GraphWays View");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.getContentPane().add(vv);
+        frame.pack();
+        frame.setLocationRelativeTo(null);
+        frame.setVisible(true);
     }
 
     static void hnn(){

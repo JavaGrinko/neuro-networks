@@ -56,6 +56,12 @@ public class Matrix{
         v.setData(j,value);
     }
 
+    /**
+     *
+     * @param i - Строка
+     * @param j - Столбец
+     * @return
+     */
     public double getData(int i, int j){
         Vector v = data[i];
         return v.getData(j);
