@@ -13,8 +13,8 @@ import java.util.List;
  * @Time 15:44
  */
 public class SingleLayerPerceptron {
-    final double defaultW = 0.01;
-    final double eta = 0.01;
+    final double defaultW = 0.5;
+    final double eta = 0.1;
     public Matrix W;
     private List<Neuron> neurons;
     private int neuronCount;
@@ -52,7 +52,7 @@ public class SingleLayerPerceptron {
         }
     }
 
-    private void training(Vector X, Vector R){
+    public void training(Vector X, Vector R){
         Vector S = Operations.transpose(Operations.multiplication(W,Operations.transpose(X.toMatrix()))).toVector();
         Y = new Vector(S.getCount());
         for (int i = 0; i < S.getCount(); i++){

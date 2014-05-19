@@ -1,25 +1,23 @@
 package edu.grinch;
 
 import edu.grinch.graph.Vertex;
-import edu.grinch.ins.HopfieldNeuralNetwork;
-import edu.grinch.ins.KohonensNeuralNetwork;
-import edu.grinch.ins.SingleLayerPerceptron;
-import edu.grinch.linearalgebra.Matrix;
-import edu.grinch.linearalgebra.Vector;
 import edu.grinch.simulator.Simulator;
 import edu.uci.ics.jung.algorithms.layout.KKLayout;
 import edu.uci.ics.jung.algorithms.layout.Layout;
-import edu.uci.ics.jung.visualization.BasicVisualizationServer;
+import edu.uci.ics.jung.visualization.VisualizationViewer;
+import edu.uci.ics.jung.visualization.control.DefaultModalGraphMouse;
+import edu.uci.ics.jung.visualization.control.ModalGraphMouse;
 import edu.uci.ics.jung.visualization.renderers.Renderer;
 import org.apache.commons.collections15.Transformer;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
+import javax.swing.border.TitledBorder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.util.*;
-import java.util.List;
 import java.util.Timer;
+import java.util.TimerTask;
 
 /**
  * Author Grinch
@@ -27,12 +25,17 @@ import java.util.Timer;
  * Time: 14:48
  */
 public class Neuro {
-    static JPanel graphPanel, controlPanel, mainPanel;
+    static JPanel graphPanel, controlPanel, mainPanel, imagesPanel;
     static JButton startButton;
-    static BasicVisualizationServer<Vertex,String> vv;
+    static VisualizationViewer<Vertex,String> vv;
     static Simulator simulator;
     static Timer timer = new Timer();
-    public static final int MILLISECONDS_STEP = 1;
+    static int millisecondsDelay = 1000;
+    static JTextField fieldDelay;
+    static JTextField fieldID;
+    static JLabel aliveAnts;
+    static JLabel deadAnts;
+    static JTextArea imageArea;
 
     public static void main(String[] args){
         initUI();
@@ -41,8 +44,9 @@ public class Neuro {
         Layout<Vertex, String> layout = new KKLayout<Vertex, String>(simulator.getGraphWays().getGraph());
         layout.setSize(new Dimension(650,650));
 
-        vv = new BasicVisualizationServer<Vertex,String>(layout);
+        vv = new VisualizationViewer <Vertex,String>(layout);
         //vv.setPreferredSize(new Dimension(650,650));
+
         Transformer<Vertex,Paint> vertexPaint = new Transformer<Vertex,Paint>() {
             public Paint transform(Vertex v) {
                 if (v == simulator.getGraphWays().getStartVertex()){
@@ -54,6 +58,9 @@ public class Neuro {
                 if (simulator.getAntCount(v) > 0){
                     //return simulator.getFirstAnt(v).getColor();
                     return Color.BLACK;
+                }
+                if (v.getGameObject() != null){
+                    return Color.GRAY;
                 }
                 return Color.GREEN;
             }
@@ -78,20 +85,66 @@ public class Neuro {
         vv.getRenderContext().setVertexLabelTransformer(getVertexLabels());
         //vv.getRenderContext().setEdgeLabelTransformer(new ToStringLabeller());
         vv.getRenderer().getVertexLabelRenderer().setPosition(Renderer.VertexLabel.Position.N);
+        // Create a graph mouse and add it to the visualization component
+        DefaultModalGraphMouse gm = new DefaultModalGraphMouse();
+        gm.setMode(ModalGraphMouse.Mode.TRANSFORMING);
+        vv.setGraphMouse(gm);
 
-        graphPanel.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 20));
+        //graphPanel.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 20));
         graphPanel.add(vv);
 
 
-        JLabel label1 = new JLabel("Time: 00:00:00", null, JLabel.CENTER);
+        //labelTime.setBorder(BorderFactory.createEmptyBorder(0, 20, 0, 20));
+        JPanel panelDelay = new JPanel(new FlowLayout());
+        fieldDelay =  new JTextField(5);
+        fieldDelay.setText("1000");
+        JLabel enterDelay = new JLabel("Enter delay");
+        panelDelay.add(enterDelay);
+        panelDelay.add(fieldDelay);
 
-        controlPanel.add(label1);
+        controlPanel.add(panelDelay, BorderLayout.CENTER);
         controlPanel.add(startButton);
-        mainPanel.add(controlPanel,BorderLayout.PAGE_START);
+        controlPanel.add(aliveAnts);
+        controlPanel.add(deadAnts);
+
+        JPanel enterID = new JPanel(new FlowLayout());
+        fieldID =  new JTextField(7);
+        fieldID.setText("0");
+        JLabel enterId = new JLabel("Enter ID:");
+        enterID.add(enterId);
+        enterID.add(fieldID);
+
+        JButton buttonID = new JButton("OK");
+
+        imagesPanel.add(enterID);
+        imagesPanel.add(buttonID);
+        imagesPanel.add(imageArea);
+
+        buttonID.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                StringBuilder sb = new StringBuilder();
+                sb.append("Report:").append("\n");
+                String sId = fieldID.getText();
+                int iId = Integer.valueOf(sId);
+                Vertex v = simulator.getGraphWays().getVertexes().get(iId);
+                if (v.getGameObject() != null){
+                    sb.append("Object: ").append(v.getGameObject()).append("\n");
+                    sb.append(v.getGameObject().toPrint());
+                }else{
+                    sb.append("Object: without object").append("\n");
+                }
+                imageArea.setText(sb.toString());
+            }
+        });
+
+        mainPanel.add(imagesPanel,BorderLayout.EAST);
+        mainPanel.add(controlPanel,BorderLayout.WEST);
         mainPanel.add(graphPanel,BorderLayout.CENTER);
 
         JFrame frame = new JFrame("Ants");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        //frame.setExtendedState( frame.getExtendedState()|JFrame.MAXIMIZED_BOTH );
         frame.add(mainPanel);
         frame.pack();
         frame.setLocationRelativeTo(null);
@@ -101,119 +154,52 @@ public class Neuro {
     static private Transformer<Vertex, String> getVertexLabels(){
         return new Transformer<Vertex, String>() {
                     public String transform(Vertex v) {
+                        if (v.getGameObject() != null){
+                            String d = v.getGameObject().getClusterID() != -1 ? ", D: "+v.getGameObject().getCurrentDangerous() : "";
+                            return v.toString()+", A="+simulator.getAntCount(v)+", "+v.getGameObject().toString()+d;
+                        }
                         return v.toString()+", A="+simulator.getAntCount(v)+", F="+Math.round(v.getPheromone()*1000.)/1000.;
                     }
                 };
-
     }
-    static boolean enable = false;
+
     private static void initUI() {
+        aliveAnts = new JLabel("Alive: ");
+        aliveAnts.setBorder(new EmptyBorder(0, 5, 0, 5) );
+        deadAnts = new JLabel("Dead: ");
+        deadAnts.setBorder(new EmptyBorder(0, 5, 0, 5) );
+        imageArea = new JTextArea(6, 6);
         graphPanel = new JPanel(new GridBagLayout());
-        controlPanel = new JPanel(new FlowLayout());
+        imagesPanel = new JPanel();
+        imagesPanel.setLayout(new BoxLayout(imagesPanel, BoxLayout.Y_AXIS));
+        imagesPanel.setBorder(new TitledBorder("DataViewer"));
+        controlPanel = new JPanel(new GridLayout(10,1,10,10));
+        controlPanel.setBorder(new TitledBorder("Control panel"));
         mainPanel = new JPanel(new BorderLayout());
-        startButton = new JButton("Speed UP");
+        startButton = new JButton("Start");
         startButton.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
+                if (timer != null){
+                    timer.cancel();
+                    timer.purge();
+                    timer.cancel();
+                    timer = new Timer();
+                }
+                String s = fieldDelay.getText();
+                millisecondsDelay = Integer.valueOf(s);
                 timer.schedule(new TimerTask() {
                     @Override
                     public void run() {
                         simulator.move();
                         vv.getRenderContext().setVertexLabelTransformer(getVertexLabels());
                         vv.updateUI();
+                        int alive = simulator.getAliveAnts();
+                        int dead = simulator.getDeadAnts();
+                        aliveAnts.setText("Alive: "+alive);
+                        deadAnts.setText("Dead: "+dead);
                     }
-                }, 0, MILLISECONDS_STEP);
+                }, 0, millisecondsDelay);
             }
         });
-    }
-
-    static void hnn(){
-        HopfieldNeuralNetwork hnn = new HopfieldNeuralNetwork(9);
-
-        Vector v = new Vector(9);
-        v.setData(0,1);v.setData(1,-1);v.setData(2,1);
-        v.setData(3,-1);v.setData(4,1);v.setData(5,-1);
-        v.setData(6,1);v.setData(7,-1);v.setData(8,1);
-        hnn.training(v);
-
-        v.setData(0,1);v.setData(1,1);v.setData(2,1);
-        v.setData(3,-1);v.setData(4,-1);v.setData(5,1);
-        v.setData(6,-1);v.setData(7,-1);v.setData(8,1);
-        hnn.training(v);
-
-        v.setData(0,1);v.setData(1,-1);v.setData(2,-1);
-        v.setData(3,-1);v.setData(4,1);v.setData(5,-1);
-        v.setData(6,-1);v.setData(7,-1);v.setData(8,1);
-
-        Vector R = hnn.combat(v);
-        Matrix k = new Matrix(new double[][]{{R.getData(0),R.getData(1),R.getData(2)},
-                                             {R.getData(3),R.getData(4),R.getData(5)},
-                                             {R.getData(6),R.getData(7),R.getData(8)}});
-        System.out.println(k);
-    }
-
-    static void knn(){
-        KohonensNeuralNetwork knn = new KohonensNeuralNetwork(9,3);
-        Vector v = new Vector(3);
-        v.setData(0,0);
-        v.setData(1,1);
-        v.setData(2,0);
-        knn.training(v);
-
-        v = new Vector(3);
-        v.setData(0,1);
-        v.setData(1,0);
-        v.setData(2,1);
-        knn.training(v);
-
-        v = new Vector(3);
-        v.setData(0,1);
-        v.setData(1,1);
-        v.setData(2,1);
-        knn.training(v);
-
-        v = new Vector(3);
-        v.setData(0,0);
-        v.setData(1,1);
-        v.setData(2,0);
-        knn.training(v);
-    }
-
-    static void slp(){
-        SingleLayerPerceptron slp = new SingleLayerPerceptron(3,2);
-        Vector X = new Vector(2);
-        double eps = 1;
-        double delta;
-
-        List<Vector> samples = new LinkedList<Vector>();
-        List<Double> results = new LinkedList<Double>();
-        Random r = new Random();
-
-        for (int i = 0; i < 1500; i++){
-            double arg1 = r.nextDouble()*5;
-            double arg2 = r.nextDouble()*5;
-            Vector v = new Vector(2);
-            v.setData(0,arg1);
-            v.setData(1,arg2);
-            samples.add(v);
-            results.add(f(arg1,arg2));
-        }
-
-        do{
-            delta = 0;
-            for (int i = 0; i < samples.size(); i++){
-                //slp.training(samples.get(i),results.get(i));
-                delta += Math.abs(results.get(i)-slp.getY().toDouble());
-            }
-
-            delta /= samples.size();
-        }while (delta > eps);
-
-        X.setData(0,3);
-        X.setData(1,2);
-        System.out.println(slp.combat(X).toDouble());
-    }
-
-    public static double f(double x, double y){
-        return x;
     }
 }

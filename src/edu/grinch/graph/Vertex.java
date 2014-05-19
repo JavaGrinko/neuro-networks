@@ -1,5 +1,7 @@
 package edu.grinch.graph;
 
+import edu.grinch.simulator.GameObject;
+
 import java.util.LinkedList;
 import java.util.List;
 
@@ -15,6 +17,7 @@ public class Vertex {
     private List<Vertex> parents = new LinkedList<Vertex>();
     private List<Vertex> children = new LinkedList<Vertex>();
     private double pheromone;
+    private GameObject gameObject;
 
     private double weight;
 
@@ -25,6 +28,10 @@ public class Vertex {
 
     public void decreasePheromone(){
         pheromone = pheromone <= 0 ? 0:(1-Vertex.EPS)*pheromone;
+    }
+
+    public String toString(){
+        return String.valueOf("ID: "+getId());
     }
 
     public List<Vertex> getParents() {
@@ -67,7 +74,11 @@ public class Vertex {
         this.weight = weight;
     }
 
-    public String toString(){
-        return String.valueOf("ID: "+getId());
+    public GameObject getGameObject() {
+        return gameObject;
+    }
+
+    public void setGameObject(GameObject gameObject) {
+        this.gameObject = gameObject;
     }
 }

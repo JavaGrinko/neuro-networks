@@ -1,7 +1,8 @@
 package edu.grinch.simulator;
 
-import edu.grinch.graph.GraphWays;
 import edu.grinch.graph.Vertex;
+import edu.grinch.ins.KohonensNeuralNetwork;
+import edu.grinch.ins.SingleLayerPerceptron;
 import edu.grinch.linearalgebra.Vector;
 
 import java.awt.*;
@@ -18,17 +19,36 @@ public class Ant {
     public static final double KOEF_K = 1.;
     public static final double ALPHA = 1.;
     public static final double BETA = 0.;
-    private GraphWays graphWays;
+    public static final double ALIVE = 0;
+    public static final double DEAD = 1;
+    public static int home;
+    public static int food;
+    private static KohonensNeuralNetwork knn;
+    private static SingleLayerPerceptron slp;
     private List<Vertex> tabuList = new LinkedList<Vertex>();
     private Vertex currentPosition;
     private int lastCount;
     private boolean isTailDown;
     private boolean isBack;
     private Color color;
+    private double status = ALIVE;
+    private Random random = new Random();
 
-    public Ant(GraphWays graphWays){
-        this.graphWays = graphWays;
-        currentPosition = graphWays.getStartVertex();
+    static {
+        setKnn(new KohonensNeuralNetwork(36,10));
+        setSlp(new SingleLayerPerceptron(1,10));
+        initialTraining();
+    }
+
+    private static void initialTraining() {
+        getKnn().training(ObjectBox.getObject(ObjectBox.IMAGE_HOME).collectToVector()); //обучаем дому
+        home = getKnn().getY().getMaxItemIndex();
+        getKnn().training(ObjectBox.getObject(ObjectBox.IMAGE_FOOD).collectToVector()); //обучаем еде
+        food = getKnn().getY().getMaxItemIndex();
+    }
+
+    public Ant(Vertex location){
+        currentPosition = location;
         Random r = new Random();
         color = new Color(r.nextInt(256),r.nextInt(256),r.nextInt(256),r.nextInt(256));
     }
@@ -61,8 +81,8 @@ public class Ant {
                     s += P.getData(i);
                 }
                 for (int i = 0; i < P.getCount(); i++){
-                    P.setData(i,P.getData(i)/s);
-                    if (i != 0) P.setData(i,P.getData(i)+P.getData(i-1));
+                    P.setData(i, P.getData(i) / s);
+                    if (i != 0) P.setData(i, P.getData(i) + P.getData(i-1));
                 }
                 Random r = new Random();
                 double x = r.nextDouble();
@@ -84,13 +104,44 @@ public class Ant {
                 tabuList.add(currentPosition);
                 currentPosition = nextVertex;
 
-                /* если мы перешли на финишную вершину - радуемся и опускаем хвост,
-                   посыпая дорожку феромонами
-                 */
-                if (currentPosition == graphWays.getEndVertex()){
-                    isBack = true;
-                    isTailDown = true;
-                    lastCount = tabuList.size();
+                //есть ли на клетке образ?
+                if (currentPosition.getGameObject() != null){
+                    /*
+                        Распознаем образ с помощью сети Коханена
+                     */
+                    knn.training(currentPosition.getGameObject().collectToVector());
+                    Vector Y = knn.getY();
+                    int cluster = Y.getMaxItemIndex();
+                    currentPosition.getGameObject().setClusterID(cluster);
+                    currentPosition.getGameObject().setCurrentDangerous(getSlp().combat(Y).getData(0));
+                    if (cluster == Ant.food){
+                        isBack = true;
+                        isTailDown = true;
+                        lastCount = tabuList.size();
+                    }else{
+                        /*
+                            опрашиваем нейросеть, принимаем решение:
+                            рисковать пройтись по объекту или развернуться
+                         */
+                        if (isMustToRisk(Y)){
+                            /*
+                                Оправдался ли наш риск исходя из реальной природы объекта?
+                             */
+                            Vector R = new Vector(1);
+                            if (isDead(currentPosition.getGameObject())){
+                                R.setData(0,Ant.DEAD);
+                                setStatus(DEAD);
+                            }else{
+                                R.setData(0,Ant.ALIVE);
+                            }
+
+                            //нейросеть получает опыт от события
+                            getSlp().training(Y,R);
+                        }else{
+                            //разворачиваемся назад
+                            isBack = true;
+                        }
+                    }
                 }
             }
         }else{
@@ -98,11 +149,50 @@ public class Ant {
             currentPosition = tabuList.get(tabuList.size()-1);
             tabuList.remove(currentPosition);
 
-            //если вернулись на исходную - поднимаем хвост и идем опять за едой
-            if (currentPosition == graphWays.getStartVertex()){
-                isBack = false;
-                isTailDown = false;
+
+            if (currentPosition.getGameObject() != null){
+                    /*
+                        Распознаем образ с помощью сети Коханена
+                     */
+                knn.training(currentPosition.getGameObject().collectToVector());
+                int cluster = knn.getY().getMaxItemIndex();
+                currentPosition.getGameObject().setClusterID(cluster);
+                currentPosition.getGameObject().setCurrentDangerous(getSlp().combat(knn.getY()).getData(0));
+                //если вернулись на исходную - поднимаем хвост и идем опять за едой
+                if (cluster == Ant.home){
+                    isBack = false;
+                    isTailDown = false;
+                }else{
+                    if (isDead(currentPosition.getGameObject())){
+                        setStatus(DEAD);
+                    }else{
+                        //currentPosition.getGameObject().decreaseDangerous();
+                    }
+                    //нейросеть не получает опыт от события, действие было вынужденным
+                }
             }
+        }
+    }
+
+    private boolean isMustToRisk(Vector X){
+        Vector Y = getSlp().combat(X);
+        double dangerous = Y.getData(0);
+        dangerous = dangerous > 0.99 ? 1 : dangerous;
+        double r = random.nextDouble();
+        if (r <= dangerous){
+            return false;
+        }else{
+            return true;
+        }
+    }
+
+    private boolean isDead(GameObject object){
+        double dangerous = object.getDangerous();
+        double r = random.nextDouble();
+        if (r <= dangerous){
+            return true;
+        }else{
+            return false;
         }
     }
 
@@ -164,5 +254,29 @@ public class Ant {
 
     public void setColor(Color color) {
         this.color = color;
+    }
+
+    public static KohonensNeuralNetwork getKnn() {
+        return knn;
+    }
+
+    public static void setKnn(KohonensNeuralNetwork knn) {
+        Ant.knn = knn;
+    }
+
+    public static SingleLayerPerceptron getSlp() {
+        return slp;
+    }
+
+    public static void setSlp(SingleLayerPerceptron slp) {
+        Ant.slp = slp;
+    }
+
+    public double getStatus() {
+        return status;
+    }
+
+    public void setStatus(double status) {
+        this.status = status;
     }
 }
